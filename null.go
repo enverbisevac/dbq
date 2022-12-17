@@ -54,7 +54,7 @@ func (n *Null[T]) Scan(value any) error {
 }
 
 // Value implements the driver Valuer interface.
-func (n *Null[T]) Value() (driver.Value, error) {
+func (n Null[T]) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
 	}
