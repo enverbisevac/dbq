@@ -1,3 +1,3 @@
 module github.com/enverbisevac/dbq
 
-go 1.19
+go 1.18
