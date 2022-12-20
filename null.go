@@ -49,7 +49,7 @@ func (n *Null[T]) Scan(value any) error {
 	}
 
 	err := convertAssign(&n.Val, value)
-	n.Valid = err != nil
+	n.Valid = err == nil
 	return err
 }
 
