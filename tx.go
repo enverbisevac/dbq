@@ -1,3 +1,7 @@
+// Copyright 2022 Enver Bisevac. All rights reserved.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+
 package dbq
 
 import (
@@ -9,13 +13,13 @@ import (
 
 type txKeyType struct{}
 
-var (
-	DefaultTxOpts = sql.TxOptions{
-		Isolation: sql.LevelDefault,
-		ReadOnly:  false,
-	}
-)
+// DefaultTxOpts is package variable with default transaction level
+var DefaultTxOpts = sql.TxOptions{
+	Isolation: sql.LevelDefault,
+	ReadOnly:  false,
+}
 
+// TxContext interface for DAO operations with context.
 type TxContext interface {
 	context.Context
 	Prepare(query string) (*sql.Stmt, error)
@@ -24,35 +28,43 @@ type TxContext interface {
 	QueryRow(query string, args ...any) *sql.Row
 }
 
+// Tx represents transaction with context as inner object.
 type Tx struct {
-	context.Context
-	Tx *sql.Tx
+	context.Context //nolint:containedctx
+	Tx              *sql.Tx
 }
 
+// Prepare query.
 func (t *Tx) Prepare(query string) (*sql.Stmt, error) {
 	return t.Tx.PrepareContext(t.Context, query)
 }
 
+// Exec executes query with args.
 func (t *Tx) Exec(query string, args ...any) (sql.Result, error) {
 	return t.Tx.ExecContext(t.Context, query, args...)
 }
 
+// Query loads data from db.
 func (t *Tx) Query(query string, args ...any) (*sql.Rows, error) {
 	return t.Tx.QueryContext(t.Context, query, args...)
 }
 
+// QueryRow loads single row from db.
 func (t *Tx) QueryRow(query string, args ...any) *sql.Row {
 	return t.Tx.QueryRowContext(t.Context, query, args...)
 }
 
+// Commit this transaction.
 func (t *Tx) Commit() error {
 	return t.Tx.Commit()
 }
 
+// Rollback cancel this transaction.
 func (t *Tx) Rollback() error {
 	return t.Tx.Rollback()
 }
 
+// Connector for sql database.
 type Connector interface {
 	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
 }
@@ -69,7 +81,7 @@ func NewTxProvider(conn Connector) *TxProvider {
 	}
 }
 
-// AcquireWithOpts ...
+// AcquireWithOpts transaction from db
 func (t *TxProvider) AcquireWithOpts(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	tx, err := t.conn.BeginTx(ctx, opts)
 	if err != nil {
@@ -82,7 +94,7 @@ func (t *TxProvider) AcquireWithOpts(ctx context.Context, opts *sql.TxOptions) (
 	}, nil
 }
 
-// Acquire ...
+// Acquire transaction from db
 func (t *TxProvider) Acquire(ctx context.Context) (*Tx, error) {
 	return t.AcquireWithOpts(ctx, &DefaultTxOpts)
 }
@@ -95,13 +107,15 @@ func (t *TxProvider) TxWithOpts(ctx context.Context, fn func(TxContext) error, o
 	}
 
 	defer func() {
+		//nolint:gocritic
 		if r := recover(); r != nil {
-			log.Printf("Recovering from panic in Tx.Do error is: %v \n", r)
-		}
-		if err == nil {
-			err = tx.Commit()
-		} else {
+			log.Printf("Recovering from panic in TxWithOpts error is: %v \n", r)
+			_ = tx.Rollback()
+			err, _ = r.(error)
+		} else if err != nil {
 			err = tx.Rollback()
+		} else {
+			err = tx.Commit()
 		}
 
 		if ctx.Err() != nil && errors.Is(err, context.DeadlineExceeded) {
@@ -114,10 +128,12 @@ func (t *TxProvider) TxWithOpts(ctx context.Context, fn func(TxContext) error, o
 	return err
 }
 
+// Tx runs fn in transaction.
 func (t *TxProvider) Tx(ctx context.Context, fn func(TxContext) error) error {
 	return t.TxWithOpts(ctx, fn, &DefaultTxOpts)
 }
 
+// Access interface for simple DML operations.
 type Access interface {
 	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
@@ -125,6 +141,7 @@ type Access interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
+// FromCtxOr returns access interface from context or data arg.
 func FromCtxOr(ctx context.Context, data Access) Access {
 	value, ok := ctx.Value(txKeyType{}).(Access)
 	if ok {

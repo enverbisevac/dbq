@@ -1,3 +1,7 @@
+// Copyright 2022 Enver Bisevac. All rights reserved.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+
 package dbq
 
 import (
@@ -11,19 +15,23 @@ import (
 // nullBytes is a JSON null literal
 var nullBytes = []byte("null")
 
+// Number constraint.
 type Number interface {
 	~byte | ~int | ~int16 | ~int32 | ~int64 | ~float64
 }
 
+// Type constraint.
 type Type interface {
 	Number | ~bool | ~string | time.Time
 }
 
+// Null is generic type which can be nullable..
 type Null[T Type] struct {
 	Val   T
 	Valid bool // Valid is true if T is not NULL
 }
 
+// New creates a new T
 func New[T Type](val T, valid bool) Null[T] {
 	return Null[T]{
 		Val:   val,
@@ -66,7 +74,7 @@ func FromValue[T Type](n T) Null[T] {
 	return New(n, true)
 }
 
-// FromPtr creates a new Bool that will be null if f is nil.
+// FromPtr creates a new T that will be null if n is nil.
 func FromPtr[T Type](n *T) Null[T] {
 	var zero T
 	if n == nil {
@@ -85,8 +93,6 @@ func (n Null[T]) ValueOrZero() T {
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
-// It supports number and null input.
-// 0 will not be considered a null Bool.
 func (n *Null[T]) UnmarshalJSON(data []byte) error {
 	if bytes.Equal(data, nullBytes) {
 		n.Valid = false
@@ -102,7 +108,6 @@ func (n *Null[T]) UnmarshalJSON(data []byte) error {
 }
 
 // MarshalJSON implements json.Marshaler.
-// It will encode null if this Bool is null.
 func (n Null[T]) MarshalJSON() ([]byte, error) {
 	if !n.Valid {
 		return []byte("null"), nil
@@ -110,13 +115,13 @@ func (n Null[T]) MarshalJSON() ([]byte, error) {
 	return json.Marshal(n.Val)
 }
 
-// SetValid changes this Bool's value and also sets it to be non-null.
+// SetValid changes this T value and also sets it to be non-null.
 func (n *Null[T]) SetValid(v T) {
 	n.Val = v
 	n.Valid = true
 }
 
-// Ptr returns a pointer to this Bool's value, or a nil pointer if this Bool is null.
+// Ptr returns a pointer to this T value, or a nil pointer if Val is null.
 func (n Null[T]) Ptr() *T {
 	if !n.Valid {
 		return nil
@@ -124,13 +129,12 @@ func (n Null[T]) Ptr() *T {
 	return &n.Val
 }
 
-// IsZero returns true for invalid Bools, for future omitempty support (Go 1.4?)
-// A non-null Bool with a 0 value will not be considered zero.
+// IsZero returns true for invalid value
 func (n Null[T]) IsZero() bool {
 	return !n.Valid
 }
 
-// Equal returns true if both booleans have the same value or are both null.
+// Equal returns true if have the same value or are both null.
 func (n Null[T]) Equal(other Null[T]) bool {
 	return n.Valid == other.Valid && (!n.Valid || n.Val == other.Val)
 }

@@ -1,3 +1,7 @@
+// Copyright 2022 Enver Bisevac. All rights reserved.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+
 package dbq
 
 import (
@@ -15,6 +19,8 @@ var errNilPtr = errors.New("destination pointer is nil") // embedded in descript
 // convertAssign copies to dest the value in src, converting it if possible.
 // An error is returned if the copy would result in loss of information.
 // dest should be a pointer type.
+//
+//nolint:exhaustive,gocognit,gocyclo,cyclop,maintidx
 func convertAssign(dest, src any) error {
 	// Common cases, without reflect.
 	switch s := src.(type) {
@@ -88,7 +94,7 @@ func convertAssign(dest, src any) error {
 			return nil
 		}
 	case decimalDecompose:
-		switch d := dest.(type) {
+		switch d := dest.(type) { //nolint:gocritic
 		case decimalCompose:
 			return d.Compose(s.Decompose(nil))
 		}
@@ -143,7 +149,7 @@ func convertAssign(dest, src any) error {
 	case *bool:
 		bv, err := driver.Bool.ConvertValue(src)
 		if err == nil {
-			*d = bv.(bool)
+			*d, _ = bv.(bool)
 		}
 		return err
 	case *any:
@@ -204,7 +210,7 @@ func convertAssign(dest, src any) error {
 		i64, err := strconv.ParseInt(s, 10, dv.Type().Bits())
 		if err != nil {
 			err = strconvErr(err)
-			return fmt.Errorf("converting driver.Value type %T (%q) to a %s: %v", src, s, dv.Kind(), err)
+			return fmt.Errorf("converting driver.Value type %T (%q) to a %s: %w", src, s, dv.Kind(), err)
 		}
 		dv.SetInt(i64)
 		return nil
@@ -216,7 +222,7 @@ func convertAssign(dest, src any) error {
 		u64, err := strconv.ParseUint(s, 10, dv.Type().Bits())
 		if err != nil {
 			err = strconvErr(err)
-			return fmt.Errorf("converting driver.Value type %T (%q) to a %s: %v", src, s, dv.Kind(), err)
+			return fmt.Errorf("converting driver.Value type %T (%q) to a %s: %w", src, s, dv.Kind(), err)
 		}
 		dv.SetUint(u64)
 		return nil
@@ -228,7 +234,7 @@ func convertAssign(dest, src any) error {
 		f64, err := strconv.ParseFloat(s, dv.Type().Bits())
 		if err != nil {
 			err = strconvErr(err)
-			return fmt.Errorf("converting driver.Value type %T (%q) to a %s: %v", src, s, dv.Kind(), err)
+			return fmt.Errorf("converting driver.Value type %T (%q) to a %s: %w", src, s, dv.Kind(), err)
 		}
 		dv.SetFloat(f64)
 		return nil
@@ -250,7 +256,8 @@ func convertAssign(dest, src any) error {
 }
 
 func strconvErr(err error) error {
-	if ne, ok := err.(*strconv.NumError); ok {
+	var ne *strconv.NumError
+	if errors.As(err, &ne) {
 		return ne.Err
 	}
 	return err
@@ -265,6 +272,7 @@ func cloneBytes(b []byte) []byte {
 	return c
 }
 
+//nolint:exhaustive
 func asString(src any) string {
 	switch v := src.(type) {
 	case string:
@@ -288,6 +296,7 @@ func asString(src any) string {
 	return fmt.Sprintf("%v", src)
 }
 
+//nolint:exhaustive
 func asBytes(buf []byte, rv reflect.Value) (b []byte, ok bool) {
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:

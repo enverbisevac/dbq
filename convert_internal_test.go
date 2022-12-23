@@ -1,5 +1,5 @@
-// Copyright 2011 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
+// Copyright 2022 Enver Bisevac. All rights reserved.
+// Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
 package dbq
@@ -15,8 +15,10 @@ import (
 	"time"
 )
 
-var someTime = time.Unix(123, 0)
-var answer int64 = 42
+var (
+	someTime       = time.Unix(123, 0)
+	answer   int64 = 42
+)
 
 type (
 	userDefined       float64
@@ -198,17 +200,18 @@ func uintValue(intptr any) uint64 {
 }
 
 func float64Value(ptr any) float64 {
-	return *(ptr.(*float64))
+	return *(ptr.(*float64)) //nolint:forcetypeassert
 }
 
 func float32Value(ptr any) float32 {
-	return *(ptr.(*float32))
+	return *(ptr.(*float32)) //nolint:forcetypeassert
 }
 
 func timeValue(ptr any) time.Time {
-	return *(ptr.(*time.Time))
+	return *(ptr.(*time.Time)) //nolint:forcetypeassert
 }
 
+//nolint:gocognit,gocyclo,cyclop
 func TestConversions(t *testing.T) {
 	for n, ct := range conversionTests() {
 		err := convertAssign(ct.d, ct.s)
@@ -250,11 +253,11 @@ func TestConversions(t *testing.T) {
 		if !ct.wanttime.IsZero() && !ct.wanttime.Equal(timeValue(ct.d)) {
 			errf("want time %v, got %v", ct.wanttime, timeValue(ct.d))
 		}
-		if ct.wantnil && *ct.d.(**int64) != nil {
+		if ct.wantnil && *ct.d.(**int64) != nil { //nolint:forcetypeassert
 			errf("want nil, got %v", intPtrValue(ct.d))
 		}
 		if ct.wantptr != nil {
-			if *ct.d.(**int64) == nil {
+			if *ct.d.(**int64) == nil { //nolint:forcetypeassert
 				errf("want pointer to %v, got nil", *ct.wantptr)
 			} else if *ct.wantptr != intPtrValue(ct.d) {
 				errf("want pointer to %v, got %v", *ct.wantptr, intPtrValue(ct.d))
@@ -266,31 +269,31 @@ func TestConversions(t *testing.T) {
 				continue
 			}
 			if srcBytes, ok := ct.s.([]byte); ok {
-				dstBytes := (*ifptr).([]byte)
+				dstBytes, _ := (*ifptr).([]byte)
 				if len(srcBytes) > 0 && &dstBytes[0] == &srcBytes[0] {
 					errf("copy into interface{} didn't copy []byte data")
 				}
 			}
 		}
-		if ct.wantusrdef != 0 && ct.wantusrdef != *ct.d.(*userDefined) {
-			errf("want userDefined %f, got %f", ct.wantusrdef, *ct.d.(*userDefined))
+		if ct.wantusrdef != 0 && ct.wantusrdef != *ct.d.(*userDefined) { //nolint:forcetypeassert
+			errf("want userDefined %f, got %f", ct.wantusrdef, *ct.d.(*userDefined)) //nolint:forcetypeassert
 		}
-		if len(ct.wantusrstr) != 0 && ct.wantusrstr != *ct.d.(*userDefinedString) {
-			errf("want userDefined %q, got %q", ct.wantusrstr, *ct.d.(*userDefinedString))
+		if len(ct.wantusrstr) != 0 && ct.wantusrstr != *ct.d.(*userDefinedString) { //nolint:forcetypeassert
+			errf("want userDefined %q, got %q", ct.wantusrstr, *ct.d.(*userDefinedString)) //nolint:forcetypeassert
 		}
 	}
 }
 
 func TestNullString(t *testing.T) {
 	var ns Null[string]
-	convertAssign(&ns, []byte("foo"))
+	_ = convertAssign(&ns, []byte("foo"))
 	if !ns.Valid {
 		t.Errorf("expecting not null")
 	}
 	if ns.Val != "foo" {
 		t.Errorf("expecting foo; got %q", ns.Val)
 	}
-	convertAssign(&ns, nil)
+	_ = convertAssign(&ns, nil)
 	if ns.Valid {
 		t.Errorf("expecting null on nil")
 	}
@@ -333,7 +336,7 @@ func TestValueConverters(t *testing.T) {
 
 // Tests that assigning to RawBytes doesn't allocate (and also works).
 func TestRawBytesAllocs(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		name string
 		in   any
 		want string
@@ -404,21 +407,21 @@ func TestUserDefinedBytes(t *testing.T) {
 	var u userDefinedBytes
 	v := []byte("foo")
 
-	convertAssign(&u, v)
+	_ = convertAssign(&u, v)
 	if &u[0] == &v[0] {
 		t.Fatal("userDefinedBytes got potentially dirty driver memory")
 	}
 }
 
-type Valuer_V string
+type ValuerV string
 
-func (v Valuer_V) Value() (driver.Value, error) {
+func (v ValuerV) Value() (driver.Value, error) {
 	return strings.ToUpper(string(v)), nil
 }
 
-type Valuer_P string
+type ValuerP string
 
-func (p *Valuer_P) Value() (driver.Value, error) {
+func (p *ValuerP) Value() (driver.Value, error) {
 	if p == nil {
 		return "nil-to-str", nil
 	}
