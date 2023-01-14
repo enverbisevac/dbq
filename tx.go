@@ -22,6 +22,7 @@ var DefaultTxOpts = sql.TxOptions{
 // TxContext interface for DAO operations with context.
 type TxContext interface {
 	context.Context
+	WithValue(key, value any) TxContext
 	Prepare(query string) (*sql.Stmt, error)
 	Exec(query string, args ...any) (sql.Result, error)
 	Query(query string, args ...any) (*sql.Rows, error)
@@ -32,6 +33,13 @@ type TxContext interface {
 type Tx struct {
 	context.Context //nolint:containedctx
 	Tx              *sql.Tx
+}
+
+func (t *Tx) WithValue(key, value any) TxContext {
+	return &Tx{
+		Context: context.WithValue(t.Context, key, value),
+		Tx:      t.Tx,
+	}
 }
 
 // Prepare query.

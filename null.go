@@ -31,8 +31,8 @@ type Null[T Type] struct {
 	Valid bool // Valid is true if T is not NULL
 }
 
-// New creates a new T
-func New[T Type](val T, valid bool) Null[T] {
+// New creates a new Null[T]
+func NewNull[T Type](val T, valid bool) Null[T] {
 	return Null[T]{
 		Val:   val,
 		Valid: valid,
@@ -71,16 +71,16 @@ func (n Null[T]) Value() (driver.Value, error) {
 
 // FromValue creates a new T that will always be valid.
 func FromValue[T Type](n T) Null[T] {
-	return New(n, true)
+	return NewNull(n, true)
 }
 
 // FromPtr creates a new T that will be null if n is nil.
 func FromPtr[T Type](n *T) Null[T] {
 	var zero T
 	if n == nil {
-		return New(zero, false)
+		return NewNull(zero, false)
 	}
-	return New(*n, true)
+	return NewNull(*n, true)
 }
 
 // ValueOrZero returns the inner value if valid, otherwise false.
